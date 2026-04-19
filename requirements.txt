@@ -1,0 +1,8 @@
+openai 
+pydantic 
+python-dotenv 
+watchdog 
+textual 
+docker 
+rich
+fastapi
