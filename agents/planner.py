@@ -1,6 +1,8 @@
 import json
 from openai import OpenAI
 from config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, MODELS
+from config import MODELS
+from core.llm import get_client
 from core.state import TaskState
 from tools.file_tools import FILE_TOOLS, read_file, list_directory
 
@@ -100,23 +102,28 @@ Rules:
 - First use list_directory to understand the project structure
 - Read relevant existing files if needed to understand context
 - Output a numbered list of concrete steps for a Coder agent to follow
-- Each step must be a single, specific action (e.g. "Write function X in file Y")
-- Maximum 6 steps — keep plans tight
-- If given an error from a previous attempt, make the first step explicitly fix that error
+- Each step must be a single, specific action
+- Maximum 6 steps
+- If given an error from a previous attempt, make the first step fix that error
 
-Output format — respond with ONLY the numbered list, nothing else:
+Output format — respond with ONLY the numbered list:
 1. Step one
-2. Step two
-3. Step three"""
+2. Step two"""
 
     def _user_prompt(self, state: TaskState) -> str:
+        memory_section = ""
+        if state.memory_context and "No prior memory" not in state.memory_context:
+            memory_section = f"\n\nMemory context (use this to inform your plan):\n{state.memory_context}"
+
         files_context = ""
         if state.files_written:
             files_context = f"\nFiles already written this session: {state.files_written}"
+
         return (
             f"Goal: {state.goal}\n"
             f"Working directory: {state.working_directory}"
             f"{files_context}"
+            f"{memory_section}"
         )
 
     def _parse_plan(self, text: str) -> list[str]:

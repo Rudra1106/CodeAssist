@@ -2,6 +2,8 @@ import json
 import os
 from openai import OpenAI
 from config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, MODELS, FALLBACKS
+from config import MODELS, FALLBACKS
+from core.llm import get_client
 from core.state import TaskState
 from tools.file_tools import FILE_TOOLS, read_file, write_file, list_directory
 

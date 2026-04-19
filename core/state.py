@@ -24,6 +24,7 @@ class TaskState(BaseModel):
 
     # Mode: "learner" shows explanations, "pro" just ships
     mode: str = "learner"
+    memory_context: str = ""
 
     # Session metadata
     session_id: str = Field(default_factory=lambda: datetime.now().strftime("%Y%m%d_%H%M%S"))

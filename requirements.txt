@@ -6,3 +6,4 @@ textual
 docker 
 rich
 fastapi
+pymongo
