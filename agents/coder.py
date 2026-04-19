@@ -159,18 +159,59 @@ Rules:
         print(f"[Coder] Falling back to {fallback['provider']}/{fallback['model']}")
         try:
             client = get_client(fallback["provider"])
+
+            # Ask for raw code only — no tool calls for small local models
+            fallback_messages = [
+                messages[0],  # keep system prompt
+                {
+                    "role": "user",
+                    "content": (
+                        f"{messages[1]['content']}\n\n"
+                        "Respond with ONLY a JSON object in this exact format:\n"
+                        '{"filename": "example.py", "content": "# full code here"}\n'
+                        "No explanation. No markdown. Just the JSON object."
+                    )
+                }
+            ]
+
             response = client.chat.completions.create(
                 model=fallback["model"],
-                messages=messages,
-                tools=FILE_TOOLS,
-                tool_choice="auto",
-                max_tokens=4096,
+                messages=fallback_messages,
+                max_tokens=2048,
             )
-            content = response.choices[0].message.content or ""
+
+            raw = response.choices[0].message.content or ""
+            print(f"[Coder] Fallback raw response:\n{raw[:300]}")
+
+            # Parse the JSON and actually write the file
+            import json, re
+
+            # Strip markdown code fences if model added them anyway
+            cleaned = re.sub(r"```(?:json)?|```", "", raw).strip()
+            parsed = json.loads(cleaned)
+
+            filename = parsed.get("filename", "output.py")
+            content  = parsed.get("content", "")
+
+            if content:
+                from tools.file_tools import write_file
+                result = write_file(filename, content, state.working_directory)
+                if result["success"]:
+                    state.files_written.append(filename)
+                    print(f"[Coder] Fallback wrote → {filename}")
+                else:
+                    state.last_error = result["error"]
+
             state.last_output = content
             state.add_message("assistant", content, agent="coder_fallback")
+
+        except json.JSONDecodeError as e:
+            state.last_error = f"Fallback model returned invalid JSON: {e}\nRaw: {raw[:200]}"
+            print(f"[Coder] {state.last_error}")
         except Exception as e2:
             state.last_error = str(e2)
+            print(f"[Coder] Fallback also failed: {e2}")
+
         return state
     
     # ! there's a subtle bug in agents/coder.py in the _try_fallback method. When it falls back to Ollama, it still passes tools=FILE_TOOLS but small Ollama models don't reliably support tool use either. Replace _try_fallback with this safer version that strips tools and just asks for a plain response:

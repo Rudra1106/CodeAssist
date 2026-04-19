@@ -21,6 +21,6 @@ MODELS = {
 
 # Fallbacks if primary fails
 FALLBACKS = {
-    "openrouter": {"provider": "ollama", "model": "qwen2.5-coder:7b"},
+    "openrouter": {"provider": "ollama", "model": "qwen3.5:4b"},
     "ollama":     {"provider": "ollama", "model": "qwen2.5-coder:3b"},
 }
