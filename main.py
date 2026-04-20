@@ -2,9 +2,17 @@ import sys
 import os
 from core.state import TaskState
 from agents.orchestrator import Orchestrator
+from ui.app import AtlasApp
+
 
 
 def main():
+    
+    working_dir = sys.argv[1] if len(sys.argv) > 1 else "./test_project"
+    os.makedirs(working_dir, exist_ok=True)
+    app = AtlasApp(working_dir=working_dir)
+    app.run()
+
     test_dir = "./test_project"
     os.makedirs(test_dir, exist_ok=True)
 

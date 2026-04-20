@@ -7,3 +7,6 @@ docker
 rich
 fastapi
 pymongo
+textual 
+edge-tts 
+asyncio
