@@ -2,6 +2,7 @@ import json
 from core.llm import get_client
 from core.state import TaskState
 from core.memory import record_pattern, get_execution_history
+from core.logger import log, log_dim, log_success, log_error, log_review
 from config import MODELS
 from tools.file_tools import read_file
 
@@ -30,19 +31,23 @@ class CriticAgent:
             return True, "No files to review.", state
 
         target = state.files_written[-1]
-        print(f"\n[Critic] Reviewing: {target}")
+        log("critic", f"Reviewing: {target} — model: {self.model}")
 
         # Read the file content
         result = read_file(target, working_dir=state.working_directory)
         if not result["success"]:
             # Can't read it — let it pass, Executor will catch real errors
-            return True, f"Could not read file: {result['error']}", state
+            log_error("critic", f"Cannot read file: {result['error']}")
+            return True, result["error"], state
 
         code = result["content"]
 
         # Check execution history — has this file failed before?
         history = get_execution_history(target, limit=3)
         past_errors = [h["error"] for h in history if not h["success"] and h["error"]]
+        
+        if past_errors:
+            log_dim("critic", f"File has {len(past_errors)} past failure(s) — watching those patterns")
 
         prompt = self._build_review_prompt(code, target, past_errors, state.goal)
 
@@ -62,6 +67,7 @@ class CriticAgent:
 
         # Parse verdict from response
         approved = self._parse_verdict(review_text)
+        log_review("APPROVE" if approved else "REJECT", review_text)
 
         if approved:
             print(f"[Critic] APPROVED")
@@ -126,5 +132,5 @@ Rules:
             return False
         # If model didn't follow format, default to approve
         # (don't block progress on a confused critic)
-        print("[Critic] Couldn't parse verdict — defaulting to APPROVE")
+        log_dim("critic", "Couldn't parse verdict — defaulting to APPROVE")
         return True

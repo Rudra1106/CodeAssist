@@ -10,6 +10,11 @@ from agents.critic import CriticAgent
 from agents.teacher import TeacherAgent
 from sandbox.executor import Executor
 import os
+from core.logger import (
+    log, log_dim, log_success, log_error,
+    log_session_start, log_session_end,
+    log_memory_loaded, log_retry
+)
 
 
 class Orchestrator:
@@ -27,7 +32,7 @@ class Orchestrator:
         self.executor = Executor()
 
     def run(self, state: TaskState) -> TaskState:
-        print(f"\n[Orchestrator] Session: {state.session_id}")
+        log_session_start(state.session_id, state.goal, state.mode)
         save_session(state.session_id, state.goal, state.mode)
 
         # Inject memory context for all agents
@@ -35,7 +40,7 @@ class Orchestrator:
         state.memory_context = memory_context
 
         if "No prior memory" not in memory_context:
-            print(f"\n[Memory] Prior context loaded:\n{memory_context}\n")
+            log_memory_loaded(memory_context)
         else:
             print("[Memory] Fresh start — no prior context.\n")
 
@@ -62,7 +67,8 @@ class Orchestrator:
         # ── Retry loop on execution failure ───────────────
         while state.last_error and state.retry_count < state.max_retries:
             state.retry_count += 1
-            print(f"\n[Orchestrator] Execution failed. Retry {state.retry_count}/{state.max_retries}")
+            # print(f"\n[Orchestrator] Execution failed. Retry {state.retry_count}/{state.max_retries}")
+            log_retry(state.retry_count, state.max_retries, state.last_error[:60])
             record_pattern(f"Execution error: {state.last_error[:80]}", category="mistake")
 
             state = self.planner.replan(state)
@@ -86,7 +92,7 @@ class Orchestrator:
         if final_status == "success":
             record_pattern(f"Successfully built: {state.goal[:60]}", category="skill")
 
-        print(f"\n[Orchestrator] Done — {final_status} after {state.retry_count} retries.")
+        log_session_end(final_status, state.retry_count, state.files_written)
         return state
 
     def _critic_loop(self, state: TaskState, max_revisions: int = 2) -> TaskState:

@@ -1,6 +1,7 @@
 from core.llm import get_client
 from core.state import TaskState
 from core.memory import get_user_patterns, record_pattern
+from core.logger import log, log_error, log_explanation
 from config import MODELS
 from tools.file_tools import read_file
 
@@ -28,7 +29,7 @@ class TeacherAgent:
             return state
 
         target = state.files_written[-1]
-        print(f"\n[Teacher] Generating explanation for: {target}")
+        log("teacher", f"Generating explanation for: {target} — model: {self.model}")
 
         # Read the code
         result = read_file(target, working_dir=state.working_directory)
@@ -58,20 +59,9 @@ class TeacherAgent:
             print(f"[Teacher] Model error: {e}")
             return state
 
-        print(f"\n{'='*60}")
-        print("TEACHER EXPLANATION")
-        print('='*60)
-        print(explanation)
-        print('='*60)
-
+        log_explanation(explanation)
         state.add_message("assistant", explanation, agent="teacher")
-
-        # Record that user received teaching on this topic
-        record_pattern(
-            f"Learned: {state.goal[:60]}",
-            category="skill"
-        )
-
+        record_pattern(f"Learned: {state.goal[:60]}", category="skill")
         return state
 
     def _system_prompt(self) -> str:
